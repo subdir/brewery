@@ -69,7 +69,7 @@ class Scheduler(object):
                         self,
                         self._make_return_to_caller(self.frozen, self.run_queue, task),
                     )
-                elif result is None:
+                elif result is None and task.dead:
                     pass
                 else:
                     raise SchedulerError('Unexpected result after switching to {!r}: {!r}'.format(
