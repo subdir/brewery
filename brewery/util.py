@@ -36,7 +36,7 @@ def construct(func):
     assert not argspec.keywords
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        for attr, val in inspect.getcallargs(func, *([self] + args), **kwargs).iteritems():
+        for attr, val in inspect.getcallargs(func, *([self] + list(args)), **kwargs).iteritems():
             setattr(self, attr, val)
         func(self, *args, **kwargs)
     return wrapper

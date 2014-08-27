@@ -44,10 +44,12 @@ from Phidgets.Devices.TemperatureSensor import TemperatureSensor, ThermocoupleTy
 class Boiler(object):
     @construct
     def __init__(self, 
-        cleanwater_in_valve,
-        water_in_valve,
-        wort_out_valve,
-        flush_valve,
+        valve_cleanwater_in,
+        valve_water_in,
+        valve_wort_out,
+        valve_flush,
+        valve_to_mashtank,
+        valve_from_mashtank,
         temp_sensor,
         scale,
         stove,
@@ -55,7 +57,7 @@ class Boiler(object):
         pass
 
     def fill_with_cleanwater(self, weight):
-        with self.cleanwater_in_valve.opened_ctx():
+        with self.valve_cleanwater_in.opened_ctx():
             self.scale.wait_for(weight)
 
     def heat_to(self, temperature):
@@ -70,8 +72,8 @@ class Brewery(object):
     @contextmanager
     def pouring_from_boiler_to_mashtank_ctx(self, weight):
         with \
-            self.boiler.to_mashtank_valve.opened_ctx(), \
-            self.mashtank.from_boiler_valve.opened_ctx() \
+            self.boiler.valve_to_mashtank.opened_ctx(), \
+            self.mashtank.valve_from_boiler.opened_ctx() \
         :
             time.sleep(2)
             with self.boiler_to_mashtank_pump.enabled_ctx():
@@ -81,7 +83,7 @@ class Brewery(object):
 def main():
     logging.basicConfig(level=INFO)
 
-    with 
+    with \
         open_phidget(InterfaceKit, 262521) as relay_kit1, \
         open_phidget(InterfaceKit, 259263) as relay_kit2, \
         open_phidget(Bridge, 141089) as bridge, \
@@ -103,10 +105,12 @@ def main():
 
         brewery = Brewery(
             boiler = Boiler(
-                cleanwater_in_valve = SolenoidValve('boiler_cleanwater_in_valve',  ComplexRelay(ctl, 1, layer=1)),
-                water_in_valve      = MotorValve.from_ctl('boiler_water_in_valve', ctl, 4, layer=1),
-                wort_out_valve      = MotorValve.from_ctl('boiler_wort_out_valve', ctl, 0, layer=1),
-                flush_valve         = MotorValve.from_ctl('boiler_flush_valve',    ctl, 2, layer=1),
+                valve_cleanwater_in = SolenoidValve('boiler_valve_cleanwater_in',       ComplexRelay(ctl, 1, layer=1)),
+                valve_water_in      = MotorValve.from_ctl('boiler_valve_water_in',      ctl, 4, layer=1),
+                valve_wort_out      = MotorValve.from_ctl('boiler_valve_wort_out',      ctl, 0, layer=1),
+                valve_flush         = MotorValve.from_ctl('boiler_valve_flush',         ctl, 2, layer=1),
+                valve_to_mashtank   = MotorValve.from_ctl('boiler_valve_to_mashtank',   ctl, 5, layer=1),
+                valve_from_mashtank = MotorValve.from_ctl('boiler_valve_from_mashtank', ctl, 3, layer=1),
                 temp_sensor         = Thermocouple(temperature_sensor, 0, ThermocoupleType.PHIDGET_TEMPERATURE_SENSOR_K_TYPE),
                 scale               = Scale(bridge, 3, a=1.0, b=-0.1242447059),
                 stove               = Stove(
@@ -115,14 +119,14 @@ def main():
                     program_relay = Relay(relay_kit2, 1),
                 ),
             ),
-            mashtank = MashTank(
+            mashtank = """MashTank(
                 scale       = Scale(bridge, 2, a=1.0, b=-0.1242447059),
                 temp_sensor = Thermocouple(
                     temperature_sensor,
                     index = 1,
                     thermocouple_type = ThermocoupleType.PHIDGET_TEMPERATURE_SENSOR_K_TYPE),
-            ),
-            boiler_to_mashtank_pump = Pump(Relay(relay_kit2, 3)),
+            )""",
+            boiler_to_mashtank_pump = """Pump(Relay(relay_kit2, 3))""",
         )
 
         sched(All(
@@ -156,5 +160,5 @@ def main():
         sys.exit(0)
 
 if __name__ == '__main__':
-    start_scheduler(entry=main)
+    start_scheduler(entry_func=main)
 
