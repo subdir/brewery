@@ -6,21 +6,22 @@ import threading
 from collections import defaultdict, deque, namedtuple
 from Queue import Queue, Empty
 
-from greenlet import greenlet, GreenletExit
+from greenlet import greenlet as Greenlet, GreenletExit
 
 class SchedulerError(Exception):
     pass
 
 def get_root():
-    gr = greenlet.getcurrent()
+    gr = Greenlet.getcurrent()
     while gr.parent is not None:
         gr = gr.parent
     return gr
 
-SchedulerCommand = namedtuple('SchedulerCommand', 'task activator')
+SchedulerCommand = namedtuple('SchedulerCommand', 'greenlet activator')
+Sleeper = namedtuple('Sleeper', 'wakeup_time return_to_caller')
 
 def sched(command):
-    return get_root().switch(SchedulerCommand(greenlet.getcurrent(), command))
+    return get_root().switch(SchedulerCommand(Greenlet.getcurrent(), command))
 
 class Scheduler(object):
     def __init__(self):
@@ -33,55 +34,55 @@ class Scheduler(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         while not self.run_queue.empty():
-            task, args, kwargs = self.run_queue.get()
-            task.throw()
-        for task in self.frozen:
-            task.throw()
+            greenlet, args, kwargs = self.run_queue.get()
+            greenlet.throw()
+        for greenlet in self.frozen:
+            greenlet.throw()
 
     def put_to_sleep(self, seconds, return_to_caller):
-        heapq.heappush(self.sleeping, (time.time() + seconds, return_to_caller))
+        heapq.heappush(self.sleeping, Sleeper(time.time() + seconds, return_to_caller))
 
-    def enqueue_task(self, task, *args, **kwargs):
-        self.run_queue.put((task, args, kwargs))
+    def enqueue_greenlet(self, greenlet, *args, **kwargs):
+        self.run_queue.put((greenlet, args, kwargs))
 
     @staticmethod
-    def _make_return_to_caller(frozen, run_queue, task):
+    def _make_return_to_caller(frozen, run_queue, greenlet):
         def return_to_caller(result):
-            frozen.remove(task) # падаем, если задачи нет в замороженных
-            run_queue.put((task, [result], {}))
+            frozen.remove(greenlet) # падаем, если задачи нет в замороженных
+            run_queue.put((greenlet, [result], {}))
         return return_to_caller
 
     def start(self):
         while not self.run_queue.empty() or self.frozen:
             now = time.time()
-            while self.sleeping and self.sleeping[0][0] < now:
-                heapq.heappop(self.sleeping)[1](None)
+            while self.sleeping and self.sleeping[0].wakeup_time <= now:
+                heapq.heappop(self.sleeping).return_to_caller(None)
 
             try:
-                task, args, kwargs = self.run_queue.get(
+                greenlet, args, kwargs = self.run_queue.get(
                     block = True,
-                    timeout = (self.sleeping[0][0] - now) if self.sleeping else 1.0,
+                    timeout = (self.sleeping[0].wakeup_time - now) if self.sleeping else 1.0,
                 )
-                result = task.switch(*args, **kwargs)
+                result = greenlet.switch(*args, **kwargs)
                 if isinstance(result, SchedulerCommand):
-                    self.frozen.add(result.task)
+                    self.frozen.add(result.greenlet)
                     result.activator(
                         self,
-                        self._make_return_to_caller(self.frozen, self.run_queue, task),
+                        self._make_return_to_caller(self.frozen, self.run_queue, greenlet),
                     )
-                elif result is None and task.dead:
+                elif result is None and greenlet.dead:
                     pass
                 else:
                     raise SchedulerError('Unexpected result after switching to {!r}: {!r}'.format(
-                        task, result
+                        greenlet, result
                     ))
             except Empty:
                 pass
 
 def start_scheduler(entry_func, *args, **kwargs):
-    assert get_root() is greenlet.getcurrent(), "Scheduler must be run in root greenlet"
+    assert get_root() is Greenlet.getcurrent(), "Scheduler must be run in root greenlet"
     with Scheduler() as scheduler:
-        scheduler.enqueue_task(greenlet(entry_func))
+        scheduler.enqueue_greenlet(Greenlet(entry_func))
         scheduler.start()
 
 def Yield():
@@ -96,7 +97,7 @@ def Sleep(seconds):
 
 def Call(func, *args, **kwargs):
     def CallInstance(scheduler, return_to_caller):
-        scheduler.enqueue_task(greenlet(
+        scheduler.enqueue_greenlet(Greenlet(
             lambda: return_to_caller(func(*args, **kwargs))
         ))
     return CallInstance
