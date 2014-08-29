@@ -30,7 +30,7 @@ from greenlet import greenlet
 from green_phidgets.scheduler import start_scheduler, sched
 
 from brewery.units import *
-from brewery.util import construct, open_phidget
+from brewery.util import struct, open_phidget
 from brewery.relay import Relay, RelayController, ComplexRelay
 from brewery.valve import MotorValve, SolenoidValve
 from brewery.scale import Scale
@@ -41,8 +41,8 @@ from Phidgets.Devices.InterfaceKit import InterfaceKit
 from Phidgets.Devices.Bridge import Bridge, BridgeGain
 from Phidgets.Devices.TemperatureSensor import TemperatureSensor, ThermocoupleType
 
+@struct
 class Boiler(object):
-    @construct
     def __init__(self, 
         valve_cleanwater_in,
         valve_water_in,
@@ -64,8 +64,8 @@ class Boiler(object):
         with self.stove.enabled_ctx():
             self.temp_sensor.wait_for(temperature)
 
+@struct
 class Brewery(object):
-    @construct
     def __init__(self, boiler, mashtank, boiler_to_mashtank_pump):
         pass
 
@@ -143,7 +143,7 @@ def main():
             brewery.mashtank.stiring_ctx(), \
             brewery.pouring_from_boiler_to_mashtank_ctx() \
         :
-            brewery.mashtank.temp_sensor.wait_for(ge, Celcius(65))
+            brewery.mashtank.temp_sensor.wait_for(lambda t: t >= Celcius(65))
 
 #        task heater:
 #            brewery.boiler.fill_with_cleanwater(Kilos(20))

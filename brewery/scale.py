@@ -3,10 +3,10 @@ from __future__ import print_function, with_statement
 import time
 from contextlib import contextmanager
 
-from brewery.util import construct
+from brewery.util import struct
 
+@struct
 class Scale(object):
-    @construct
     def __init__(self, bridge, inputno, a, b):
         pass
 

@@ -3,7 +3,7 @@ from __future__ import print_function, with_statement
 import threading
 from contextlib import contextmanager
 
-from brewery.util import clog, INFO, construct
+from brewery.util import clog, INFO, struct
 
 from Phidgets.Devices.InterfaceKit import InterfaceKit
 from Phidgets.Devices.Bridge import Bridge, BridgeGain
@@ -64,8 +64,8 @@ class Relay(object):
                 if self.shared_use == 0:
                     self.set_closed(False)
 
+@struct
 class RelayController(object):
-    @construct
     def __init__(self, direction_relay, layer_relay, control_relays):
         pass
 
@@ -81,8 +81,8 @@ class RelayController(object):
         with self.layer_relay.keep_closed_ctx(bool(layer)):
             yield
 
+@struct
 class ComplexRelay(object):
-    @construct
     def __init__(self, controller, control_number, layer, is_straight_current=True):
         pass
 

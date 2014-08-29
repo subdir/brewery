@@ -4,13 +4,13 @@ import time
 from contextlib import contextmanager
 
 from brewery.relay import ComplexRelay
-from brewery.util import construct
+from brewery.util import struct
 
 class ValveError(Exception):
     pass
 
+@struct
 class MotorValve(object):
-    @construct
     def __init__(self, name, open_relay, close_relay, timeout=None):
         self.timeout = timeout or 3
 
@@ -42,8 +42,8 @@ class MotorValve(object):
         finally:
             self.close()
 
+@struct
 class SolenoidValve(object):
-    @construct
     def __init__(self, name, open_relay):
         pass
 
