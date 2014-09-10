@@ -3,7 +3,7 @@
 from __future__ import print_function, with_statement
 
 import inspect
-from functools import wraps
+from functools import wraps, total_ordering
 
 
 class StructError(Exception):
@@ -37,6 +37,7 @@ def struct_patch(name, bases, dict):
 
         dict.update({'__slots__':argspec.args[1:], '__init__':init})
 
+    dict.update({'__eq__' : struct_eq, '__lt__' : struct_lt, '__hash__' : struct_hash})
     if '__repr__' not in dict:
         # на repr'ы из базовых классов накласть
         dict['__repr__'] = repr_struct
@@ -46,6 +47,10 @@ def struct_patch(name, bases, dict):
 
 def struct(cls):
     '''
+    Декоратор, превращающий класс в структуру.
+    Метакласс не меняется, это полезно, например, если хочется сделать
+    структуру абстрактным базовым классом.
+
     >>> @struct
     ... class Test: pass
     Traceback (most recent call last):
@@ -61,18 +66,29 @@ def struct(cls):
     >>> t = Test('a')
     >>> t.test()
     ('a', 1, None)
+
+    СРАВНЕНИЕ
+
+    >>> t > Test('a', b=0)
+    True
+    >>> t > Test('b', b=0)
+    False
+
+    ХЕШИ
+
+    >>> d = {t : True}
+    >>> t in d
+    True
+    >>> t.a = 'x'
+    >>> t in d
+    False
     '''
     assert object in inspect.getmro(cls), "{!r} must be derived from 'object'".format(cls.__name__)
-    return type(*struct_patch(
+    return total_ordering(getattr(cls, '__metaclass__', type)(*struct_patch(
         cls.__name__,
         get_base_classes(cls),
         dict(cls.__dict__),
-    ))
-
-
-class StructType(type):
-    def __new__(mcs, name, bases, dict):
-        return type.__new__(mcs, *struct_patch(name, bases, dict))
+    )))
 
 
 def repr_struct(self, first_named_attr=0):
@@ -84,6 +100,33 @@ def repr_struct(self, first_named_attr=0):
         else:
             attr_strs.append(name + "=" + val_repr)
     return "{}({})".format(type(self).__name__, ", ".join(attr_strs))
+
+
+def tuple_from_struct(self):
+    return tuple(getattr(self, attr) for attr in self.__slots__)
+
+
+def struct_eq(self, other):
+    if type(self) is type(other):
+        return tuple_from_struct(self) == tuple_from_struct(other)
+    else:
+        return False
+
+
+def struct_lt(self, other):
+    if type(self) is type(other):
+        return tuple_from_struct(self) < tuple_from_struct(other)
+    else:
+        return NotImplemented
+
+
+def struct_hash(self):
+    return hash(tuple_from_struct(self))
+
+
+class StructType(type):
+    def __new__(mcs, name, bases, dict):
+        return total_ordering(type.__new__(mcs, *struct_patch(name, bases, dict)))
 
 
 class Struct(object):
