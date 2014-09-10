@@ -10,39 +10,69 @@ class StructError(Exception):
     pass
 
 
+def struct_patch(name, bases, dict):
+    if '__init__' not in dict:
+        dict['__slots__'] = ()
+
+    else:
+        orig_init = dict['__init__']
+
+        argspec = inspect.getargspec(orig_init)
+        if argspec.varargs or argspec.keywords:
+            raise StructError('varargs and keyword args are not supported')
+
+        @wraps(orig_init)
+        def init(self, *args, **kwargs):
+            orig_init(self, *args, **kwargs)
+            # Доопределяем недоопределенные аттрибуты
+            callargs = inspect.getcallargs(
+                orig_init,
+                *([self] + list(args)),
+                **kwargs
+            )
+            for attr, val in callargs.iteritems():
+                if attr != argspec.args[0]:
+                    if not hasattr(self, attr):
+                        setattr(self, attr, val)
+
+        dict.update({'__slots__':argspec.args[1:], '__init__':init})
+
+    if '__repr__' not in dict:
+        # на repr'ы из базовых классов накласть
+        dict['__repr__'] = repr_struct
+
+    return name, bases, dict
+
+
+def struct(cls):
+    '''
+    >>> @struct
+    ... class Test: pass
+    Traceback (most recent call last):
+    ...
+    AssertionError: 'Test' must be derived from 'object'
+    >>> @struct
+    ... class Test(object):
+    ...     def __init__(self, a, b=1, c=None):
+    ...         if a is None:
+    ...             self.a = 'undefined'
+    ...     def test(self):
+    ...         return (self.a, self.b, self.c)
+    >>> t = Test('a')
+    >>> t.test()
+    ('a', 1, None)
+    '''
+    assert object in inspect.getmro(cls), "{!r} must be derived from 'object'".format(cls.__name__)
+    return type(*struct_patch(
+        cls.__name__,
+        get_base_classes(cls),
+        dict(cls.__dict__),
+    ))
+
+
 class StructType(type):
     def __new__(mcs, name, bases, dict):
-        if '__init__' not in dict:
-            dict['__slots__'] = ()
-
-        else:
-            orig_init = dict['__init__']
-
-            argspec = inspect.getargspec(orig_init)
-            if argspec.varargs or argspec.keywords:
-                raise StructError('varargs and keyword args are not supported')
-
-            @wraps(orig_init)
-            def init(self, *args, **kwargs):
-                orig_init(self, *args, **kwargs)
-                # Доопределяем недоопределенные аттрибуты
-                callargs = inspect.getcallargs(
-                    orig_init,
-                    *([self] + list(args)),
-                    **kwargs
-                )
-                for attr, val in callargs.iteritems():
-                    if attr != argspec.args[0]:
-                        if not hasattr(self, attr):
-                            setattr(self, attr, val)
-
-            dict.update({'__slots__':argspec.args[1:], '__init__':init})
-
-        if '__repr__' not in dict:
-            # на repr'ы из базовых классов накласть
-            dict['__repr__'] = repr_struct
-
-        return type.__new__(mcs, name, bases, dict)
+        return type.__new__(mcs, *struct_patch(name, bases, dict))
 
 
 def repr_struct(self, first_named_attr=0):
@@ -103,4 +133,41 @@ class Struct(object):
     AttributeError: b
     """
     __metaclass__ = StructType
+
+
+def pairs(items, second_default):
+    '''
+    >>> list(pairs([1,2,3], 4))
+    [(1, 2), (3, 4)]
+    '''
+    items_iter = iter(items)
+    while True:
+        yield (next(items_iter), next(items_iter, second_default))
+
+
+def traverse_class_tree(tree):
+    for (cls, bases), subtree in pairs(tree, []):
+        yield cls, bases
+        for subcls, subbases in traverse_class_tree(subtree):
+            yield subcls, subbases
+
+
+def get_base_classes(cls):
+    '''
+    >>> class A(object): pass
+    >>> get_base_classes(A) == (object,)
+    True
+    >>> class B(A): pass
+    >>> get_base_classes(B) == (A,)
+    True
+    >>> class C(object): pass
+    >>> class D(B, C): pass
+    >>> get_base_classes(D) == (B, C)
+    True
+    '''
+    tree = inspect.getclasstree(inspect.getmro(cls), unique=True)
+    for cls0, bases in traverse_class_tree(tree):
+        if cls0 is cls:
+            return bases
+    assert False, "Class {!r} not found in its own tree {!r}".format(cls, tree)
 
