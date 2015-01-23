@@ -10,34 +10,45 @@ class StructError(Exception):
     pass
 
 
+def autoinit(orig_init):
+    argspec = inspect.getargspec(orig_init)
+    if argspec.varargs or argspec.keywords:
+        raise StructError('varargs and keyword args are not supported')
+
+    @wraps(orig_init)
+    def init(self, *args, **kwargs):
+        orig_init(self, *args, **kwargs)
+        # Доопределяем недоопределенные аттрибуты
+        callargs = inspect.getcallargs(
+            orig_init,
+            *([self] + list(args)),
+            **kwargs
+        )
+        for attr, val in callargs.iteritems():
+            if attr != argspec.args[0]:
+                if not hasattr(self, attr):
+                    setattr(self, attr, val)
+
+    return init
+
+
 def struct_patch(name, bases, dict):
     if '__init__' not in dict:
         dict['__slots__'] = ()
-
     else:
         orig_init = dict['__init__']
-
         argspec = inspect.getargspec(orig_init)
-        if argspec.varargs or argspec.keywords:
-            raise StructError('varargs and keyword args are not supported')
+        dict.update({
+            '__slots__' : argspec.args[1:],
+            '__init__' : autoinit(orig_init)
+        })
 
-        @wraps(orig_init)
-        def init(self, *args, **kwargs):
-            orig_init(self, *args, **kwargs)
-            # Доопределяем недоопределенные аттрибуты
-            callargs = inspect.getcallargs(
-                orig_init,
-                *([self] + list(args)),
-                **kwargs
-            )
-            for attr, val in callargs.iteritems():
-                if attr != argspec.args[0]:
-                    if not hasattr(self, attr):
-                        setattr(self, attr, val)
-
-        dict.update({'__slots__':argspec.args[1:], '__init__':init})
-
-    dict.update({'__eq__' : struct_eq, '__lt__' : struct_lt, '__hash__' : struct_hash})
+    dict.update({
+        '__eq__' : struct_eq,
+        '__lt__' : struct_lt,
+        '__iter__' : struct_iter,
+    })
+    
     if '__repr__' not in dict:
         # на repr'ы из базовых классов накласть
         dict['__repr__'] = repr_struct
@@ -66,6 +77,22 @@ def struct(cls):
         >>> t.test()
         ('a', 1, None)
 
+        НАСЛЕДОВАНИЕ
+
+        >>> @struct
+        ... class Test2(object): pass
+        >>> @struct
+        ... class ChildTest(Test, Test2):
+        ...     pass
+        >>> c = ChildTest(a=1)
+        >>> c.a
+        1
+        >>> c.c
+        >>> c.d = 2
+        Traceback (most recent call last):
+        ...
+        AttributeError: 'ChildTest' object has no attribute 'd'
+
         СРАВНЕНИЕ
 
         >>> t > Test('a', b=0)
@@ -80,7 +107,15 @@ def struct(cls):
         True
         >>> t.a = 'x'
         >>> t in d
-        False
+        True
+
+        ХИТРЫЙ КОНСТРУКТОР
+
+        >>> @struct
+        ... class SubtleTest(object):
+        ...     def __init__(self, a, b=1):
+        ...         if a is None:
+        ...             self.a = 'undefined'
 
         МЕТАКЛАССЫ
 
@@ -112,8 +147,12 @@ def repr_struct(self, first_named_attr=0):
     return "{}({})".format(type(self).__name__, ", ".join(attr_strs))
 
 
+def struct_iter(self):
+    return (getattr(self, attr) for attr in self.__slots__)
+
+
 def tuple_from_struct(self):
-    return tuple(getattr(self, attr) for attr in self.__slots__)
+    return tuple(struct_iter(self))
 
 
 def struct_eq(self, other):
@@ -188,21 +227,13 @@ class Struct(object):
     __metaclass__ = StructType
 
 
-def pairs(items, second_default):
-    '''
-    >>> list(pairs([1,2,3], 4))
-    [(1, 2), (3, 4)]
-    '''
-    items_iter = iter(items)
-    while True:
-        yield (next(items_iter), next(items_iter, second_default))
-
-
 def traverse_class_tree(tree):
-    for (cls, bases), subtree in pairs(tree, []):
-        yield cls, bases
-        for subcls, subbases in traverse_class_tree(subtree):
-            yield subcls, subbases
+    for entry in tree:
+        if isinstance(entry, list):
+            for entry in traverse_class_tree(entry):
+                yield entry
+        else:
+            yield entry
 
 
 def get_base_classes(cls):
