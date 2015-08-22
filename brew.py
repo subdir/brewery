@@ -112,7 +112,7 @@ def main():
                 valve_to_mashtank   = MotorValve.from_ctl('boiler_valve_to_mashtank',   ctl, 5, layer=1),
                 valve_from_mashtank = MotorValve.from_ctl('boiler_valve_from_mashtank', ctl, 3, layer=1),
                 temp_sensor         = Thermocouple(temperature_sensor, 0, ThermocoupleType.PHIDGET_TEMPERATURE_SENSOR_K_TYPE),
-                scale               = Scale(bridge, 3, a=1.0, b=-0.1242447059),
+                scale               = Scale(bridge, 3, a=91.85688697010055, b=22.855995958296976),
                 stove               = Stove(
                     power_relay = Relay(relay_kit2, 2),
                     on_off_relay = Relay(relay_kit2, 0),
