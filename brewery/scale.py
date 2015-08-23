@@ -1,10 +1,11 @@
-from __future__ import print_function, with_statement
+
+from __future__ import generator_stop
 
 import time
 from contextlib import contextmanager
 
 
-class Scale(object):
+class Scale:
     def __init__(self, bridge, inputno, a, b):
         self.bridge = bridge
         self.inputno = inputno

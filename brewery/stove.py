@@ -1,10 +1,10 @@
-from __future__ import print_function, with_statement
+from __future__ import generator_stop
 
 import time
 from contextlib import contextmanager
 
 
-class Stove(object):
+class Stove:
     def __init__(self, power_relay, on_off_relay, program_relay):
         self.power_relay = power_relay
         self.on_off_relay = on_off_relay

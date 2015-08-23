@@ -1,4 +1,4 @@
-from __future__ import print_function, with_statement
+from __future__ import generator_stop
 
 import time
 from contextlib import contextmanager
@@ -10,7 +10,7 @@ class ValveError(Exception):
     pass
 
 
-class MotorValve(object):
+class MotorValve:
     def __init__(self, name, open_relay, close_relay, timeout=None):
         self.name = name
         self.open_relay = open_relay
@@ -46,7 +46,7 @@ class MotorValve(object):
             self.close()
 
 
-class SolenoidValve(object):
+class SolenoidValve:
     def __init__(self, name, open_relay):
         self.name = name
         self.open_relay = open_relay

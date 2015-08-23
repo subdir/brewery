@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # coding: utf-8
 #
 # Требования:
@@ -16,7 +16,7 @@
 #    после завершения программы.
 #
 
-from __future__ import print_function, with_statement
+from __future__ import generator_stop
 
 import os, sys, time
 import threading

@@ -1,9 +1,9 @@
-from __future__ import print_function, with_statement
+from __future__ import generator_stop
 
 from contextlib import contextmanager
 
 
-class Thermocouple(object):
+class Thermocouple:
     def __init__(self, temperature_sensor, index, thermocouple_type):
         self.temperature_sensor = temperature_sensor
         self.index = index

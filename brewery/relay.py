@@ -1,4 +1,4 @@
-from __future__ import print_function, with_statement
+from __future__ import generator_stop
 
 import threading
 from contextlib import contextmanager
@@ -10,7 +10,7 @@ class RelayError(Exception):
     pass
 
 
-class Relay(object):
+class Relay:
     def __init__(self, interface_kit, number):
         self.interface_kit = interface_kit
         self.number = number
@@ -64,7 +64,7 @@ class Relay(object):
                     self.set_closed(False)
 
 
-class RelayController(object):
+class RelayController:
     def __init__(self, direction_relay, layer_relay, control_relays):
         self.direction_relay = direction_relay
         self.layer_relay = layer_relay
@@ -83,7 +83,7 @@ class RelayController(object):
             yield
 
 
-class ComplexRelay(object):
+class ComplexRelay:
     def __init__(self, controller, control_number, layer, is_straight_current=True):
         self.controller = controller
         self.control_number = control_number

@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from __future__ import print_function, with_statement
+from __future__ import generator_stop
 
 import inspect
 from functools import wraps
@@ -13,7 +13,7 @@ def clog(level,message):
     try:
         log(level, message + "...")
         yield
-    except Exception, err:
+    except Exception as err:
         log(level, message + "... ERROR: {!r}".format(err))
     finally:
         log(level, message + "... Done.")
