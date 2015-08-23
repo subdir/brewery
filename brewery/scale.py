@@ -3,12 +3,13 @@ from __future__ import print_function, with_statement
 import time
 from contextlib import contextmanager
 
-from brewery.util import struct
 
-@struct
 class Scale(object):
     def __init__(self, bridge, inputno, a, b):
-        pass
+        self.bridge = bridge
+        self.inputno = inputno
+        self.a = a
+        self.b = b
 
     def enable(self):
         self.bridge.setEnabled(self.inputno, True)

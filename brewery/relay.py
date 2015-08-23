@@ -3,7 +3,7 @@ from __future__ import print_function, with_statement
 import threading
 from contextlib import contextmanager
 
-from brewery.util import clog, INFO, struct
+from brewery.util import clog, INFO
 
 
 class RelayError(Exception):
@@ -63,10 +63,12 @@ class Relay(object):
                 if self.shared_use == 0:
                     self.set_closed(False)
 
-@struct
+
 class RelayController(object):
     def __init__(self, direction_relay, layer_relay, control_relays):
-        pass
+        self.direction_relay = direction_relay
+        self.layer_relay = layer_relay
+        self.control_relays = control_relays
 
     @contextmanager
     def keep_direction_ctx(self, is_straight_current):
@@ -80,10 +82,13 @@ class RelayController(object):
         with self.layer_relay.keep_closed_ctx(bool(layer)):
             yield
 
-@struct
+
 class ComplexRelay(object):
     def __init__(self, controller, control_number, layer, is_straight_current=True):
-        pass
+        self.controller = controller
+        self.control_number = control_number
+        self.layer = layer
+        self.is_straight_current = is_straight_current
 
     @contextmanager
     def set_closed_ctx(self, enter=True, exit=False):

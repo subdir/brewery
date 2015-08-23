@@ -24,9 +24,10 @@ import logging
 from logging import log, INFO
 from contextlib import contextmanager
 from operator import ge, le
+from collections import namedtuple
 
 from brewery.units import *
-from brewery.util import struct, open_phidget
+from brewery.util import open_phidget
 from brewery.relay import Relay, RelayController, ComplexRelay
 from brewery.valve import MotorValve, SolenoidValve
 from brewery.scale import Scale
@@ -37,21 +38,18 @@ from Phidgets.Devices.InterfaceKit import InterfaceKit
 from Phidgets.Devices.Bridge import Bridge, BridgeGain
 from Phidgets.Devices.TemperatureSensor import TemperatureSensor, ThermocoupleType
 
-@struct
-class Boiler(object):
-    def __init__(self, 
-        valve_cleanwater_in,
-        valve_water_in,
-        valve_wort_out,
-        valve_flush,
-        valve_to_mashtank,
-        valve_from_mashtank,
-        temp_sensor,
-        scale,
-        stove,
-    ):
-        pass
 
+class Boiler(namedtuple('Boiler', [
+    'valve_cleanwater_in',
+    'valve_water_in',
+    'valve_wort_out',
+    'valve_flush',
+    'valve_to_mashtank',
+    'valve_from_mashtank',
+    'temp_sensor',
+    'scale',
+    'stove',
+])):
     def fill_with_cleanwater(self, weight):
         with self.valve_cleanwater_in.opened_ctx():
             self.scale.wait_for(weight)
@@ -60,11 +58,12 @@ class Boiler(object):
         with self.stove.enabled_ctx():
             self.temp_sensor.wait_for(temperature)
 
-@struct
-class Brewery(object):
-    def __init__(self, boiler, mashtank, boiler_to_mashtank_pump):
-        pass
 
+class Brewery(namedtuple('Brewery', [
+    'boiler',
+    'mashtank',
+    'boiler_to_mashtank_pump',
+])):
     @contextmanager
     def pouring_from_boiler_to_mashtank_ctx(self, weight):
         with \
@@ -156,10 +155,10 @@ def main():
                     time.sleep(1)
                     print("flushing", brewery.boiler.scale.read_weight())
 
-
         import code
         code.interact(local=locals())
         sys.exit(0)
+
 
 if __name__ == '__main__':
     main()

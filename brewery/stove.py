@@ -3,12 +3,12 @@ from __future__ import print_function, with_statement
 import time
 from contextlib import contextmanager
 
-from brewery.util import struct
 
-@struct
 class Stove(object):
     def __init__(self, power_relay, on_off_relay, program_relay):
-        pass
+        self.power_relay = power_relay
+        self.on_off_relay = on_off_relay
+        self.program_relay = program_relay
 
     @contextmanager
     def enabled_ctx(self):
