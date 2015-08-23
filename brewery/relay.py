@@ -5,11 +5,10 @@ from contextlib import contextmanager
 
 from brewery.util import clog, INFO, struct
 
-from Phidgets.Devices.InterfaceKit import InterfaceKit
-from Phidgets.Devices.Bridge import Bridge, BridgeGain
 
 class RelayError(Exception):
     pass
+
 
 class Relay(object):
     def __init__(self, interface_kit, number):
@@ -34,7 +33,7 @@ class Relay(object):
         return bool(self.interface_kit.getOutputState(self.number))
 
     @contextmanager
-    def set_closed_ctx(self, enter, exit):
+    def set_closed_ctx(self, enter=True, exit=False):
         with self.lock:
             if self.shared_use or self.exclusive_use:
                 raise RelayError('{!r} is already in use'.format(self))
@@ -87,7 +86,7 @@ class ComplexRelay(object):
         pass
 
     @contextmanager
-    def set_closed_ctx(self, enter, exit):
+    def set_closed_ctx(self, enter=True, exit=False):
         with \
             self.controller.keep_direction_ctx(self.is_straight_current), \
             self.controller.keep_layer_ctx(self.layer), \

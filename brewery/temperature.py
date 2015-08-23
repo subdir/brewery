@@ -9,3 +9,7 @@ class Thermocouple(object):
     def __init__(self, temperature_sensor, index, thermocouple_type):
         pass
 
+    def read(self):
+        self.temperature_sensor.setThermocoupleType(self.index, self.thermocouple_type)
+        return self.temperature_sensor.getTemperature(self.index)
+

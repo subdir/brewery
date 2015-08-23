@@ -25,10 +25,6 @@ from logging import log, INFO
 from contextlib import contextmanager
 from operator import ge, le
 
-from greenlet import greenlet
-
-from green_phidgets.scheduler import start_scheduler, sched
-
 from brewery.units import *
 from brewery.util import struct, open_phidget
 from brewery.relay import Relay, RelayController, ComplexRelay
@@ -129,36 +125,42 @@ def main():
             boiler_to_mashtank_pump = """Pump(Relay(relay_kit2, 3))""",
         )
 
-        sched(All(
-            Call(brewery.boiler.fill_with_cleanwater, Kilos(20)),
-            Call(lambda: sched(Sleep(10)); brewery.boiler.heat_to(ge, Celcius(80))),
-        ))
+        # Закрываем все клапаны
+        for valve in (
+            brewery.boiler.valve_water_in,
+            brewery.boiler.valve_wort_out,
+            brewery.boiler.valve_flush,
+            brewery.boiler.valve_to_mashtank,
+            brewery.boiler.valve_from_mashtank,
+        ):
+            print("Closing valve: {}...".format(valve.name))
+            valve.close()
 
+        # Набираем воду
+        with brewery.boiler.valve_water_in.opened_ctx():
+            with brewery.boiler.scale.enabled_ctx():
+                while brewery.boiler.scale.read_weight_avg() < 30:
+                    time.sleep(1)
+                    print("filling", brewery.boiler.scale.read_weight())
 
-        def keep_boiler_water_level(comp, ):
-            brewery.boiler.scale.wait(le, )
-        def keep_boiler_water_temp(ge, Celcius(80)):
+        # Нагреваем
+        with brewery.boiler.stove.enabled_ctx():
+            while brewery.boiler.temp_sensor.read() < 45:
+                time.sleep(1)
+                print("heating", brewery.boiler.temp_sensor.read())
 
-        with \
-            brewery.mashtank.stiring_ctx(), \
-            brewery.pouring_from_boiler_to_mashtank_ctx() \
-        :
-            brewery.mashtank.temp_sensor.wait_for(lambda t: t >= Celcius(65))
+        # Сливаем
+        with brewery.boiler.valve_flush.opened_ctx():
+            with brewery.boiler.scale.enabled_ctx():
+                while brewery.boiler.scale.read_weight_avg() > 7:
+                    time.sleep(1)
+                    print("flushing", brewery.boiler.scale.read_weight())
 
-#        task heater:
-#            brewery.boiler.fill_with_cleanwater(Kilos(20))
-#            brewery.boiler.keep_heated_to(Celcius(90))
-
-        brewery.mashtank.stir(Minutes(1))
-        time.sleep(Minutes(30))
- #       kill heater
-        brewery.boiler.heat_to(Celcius(90))
-        brewery.pour_from_boiler_to_mashtank(Kilos(5))
 
         import code
         code.interact(local=locals())
         sys.exit(0)
 
 if __name__ == '__main__':
-    start_scheduler(entry_func=main)
+    main()
 

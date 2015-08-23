@@ -19,6 +19,13 @@ class Scale(object):
     def read_weight(self):
         return self.bridge.getBridgeValue(self.inputno) * self.a + self.b
 
+    def read_weight_avg(self, n=100, sleep_time=0.005):
+        weight = 0.0
+        for i in range(1, n+1):
+            weight += self.read_weight()
+            time.sleep(sleep_time)
+        return weight / n
+
     @contextmanager
     def enabled_ctx(self):
         self.enable()
