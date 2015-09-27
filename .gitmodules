@@ -1,0 +1,3 @@
+[submodule "devenv"]
+	path = devenv
+	url = git@github.com:subdir/docker-dev-env.git
