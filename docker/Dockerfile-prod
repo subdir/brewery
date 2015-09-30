@@ -1,2 +1,0 @@
-RUN pip3 install 'https://github.com/subdir/phidgets-python3.git'
-
